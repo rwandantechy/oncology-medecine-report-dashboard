@@ -356,13 +356,8 @@ class FDAGhanaScraper(BaseScraper):
         if self.start_date and publish_dt and publish_dt < self.start_date:
             return None
 
-        # Name normalization (use NCI if available; fallback to raw)
-        query = raw_product_name.split(" ")[0]
-        # print("===="*10)
-        # print(raw_product_name)
-        # print("===="*10)
-        # print()
-        nci_name = self.get_nci_name(query)
+        # Match full product phrase so descriptor tokens (e.g. Sterile) are skipped.
+        nci_name = self.get_nci_name(raw_product_name)
         if not nci_name:
             return None
         product_name = nci_name or raw_product_name

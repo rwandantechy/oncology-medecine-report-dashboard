@@ -92,6 +92,73 @@ def test_extract_drug_token_lowercase(utils_mod):
     assert "herceptin" == token
 
 
+def test_extract_drug_token_skips_sterile_descriptor(utils_mod):
+    assert utils_mod.extract_drug_token("Sterile Talc Powder") == "talc"
+    assert utils_mod.extract_drug_token("Sterile Water for Injection") is None
+
+
+def test_extract_drug_token_preserves_nci_hyphens(utils_mod):
+    assert utils_mod.extract_drug_token("Ado-Trastuzumab Emtansine") == "ado-trastuzumab"
+    assert utils_mod.extract_drug_token("Amivantamab-vmjw") == "amivantamab-vmjw"
+    assert utils_mod.extract_drug_token("5-FU (Fluorouracil Injection)") == "5-fu"
+    assert utils_mod.extract_drug_token("ABVE-PC") == "abve-pc"
+    assert (
+        utils_mod.extract_drug_token("Pertuzumab, Trastuzumab, and Hyaluronidase-zzxf")
+        == "pertuzumab"
+    )
+
+
+def test_normalize_drug_name_preserves_hyphens(utils_mod):
+    assert utils_mod.normalize_drug_name("Amivantamab-vmjw") == "amivantamab-vmjw"
+    assert utils_mod.normalize_drug_name("R-CHOP") == "r-chop"
+
+
+def test_match_oncology_token_rejects_sterile_eye_drops(utils_mod):
+    approved = ["talc", "azacitidine", "herceptin"]
+    assert (
+        utils_mod.match_oncology_token(
+            "Sterile Eye Drops Redness Relief",
+            approved,
+        )
+        is None
+    )
+
+
+def test_match_oncology_token_accepts_sterile_talc(utils_mod):
+    approved = ["talc", "azacitidine"]
+    assert utils_mod.match_oncology_token("Sterile Talc Powder", approved) == "Talc"
+
+
+def test_match_oncology_token_accepts_hyphenated_biologic(utils_mod):
+    approved = ["amivantamab-vmjw", "azacitidine"]
+    assert (
+        utils_mod.match_oncology_token("Amivantamab-vmjw Injection", approved)
+        == "Amivantamab-vmjw"
+    )
+
+
+def test_match_oncology_token_accepts_direct_oncology_name(utils_mod):
+    approved = ["azacitidine", "herceptin"]
+    assert utils_mod.match_oncology_token("Azacitidine Injection", approved) == "Azacitidine"
+
+
+def test_nci_json_matches_authoritative_tokens():
+    from pathlib import Path
+
+    from src.scrapers.utils import NON_DRUG_LEADING_TOKENS, read_json
+
+    path = Path(__file__).resolve().parents[1] / "src" / "data" / "nci_oncology_drugs.json"
+    drugs = read_json(str(path))
+    assert "sterile" not in drugs
+    assert "talc" in drugs
+    assert "ado-trastuzumab" in drugs
+    assert "amivantamab-vmjw" in drugs
+    assert "5-fu" in drugs
+    assert "abve-pc" in drugs
+    assert "pertuzumab," not in drugs
+    assert not (set(drugs) & NON_DRUG_LEADING_TOKENS)
+
+
 # --- read_json ---
 
 

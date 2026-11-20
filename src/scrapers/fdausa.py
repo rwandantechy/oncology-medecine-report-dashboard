@@ -126,10 +126,11 @@ class FDAUSAScraper(BaseScraper):
             url = self.cfg["api_endpoint"] + "?search=event_id:" + record.get("event_id", "")
             description = record["product_description"]
             product_name = description.split(",")[0]
-            query = product_name.split(" ")[0]
             manufacturer = self._get_manufacturer(description)
             distributor = self._get_distributor(description)
-            drug_name = self.get_nci_name(query)
+            # Match against the full leading phrase so descriptors like "Sterile"
+            # are skipped and a later oncology token (e.g. Talc) can still hit.
+            drug_name = self.get_nci_name(product_name)
 
             if not drug_name:
                 continue

@@ -96,9 +96,8 @@ class HealthCanadaScraper(BaseScraper):
             if not raw_name:
                 continue
 
-            # Mirror your FDA approach: pick a query token and map via NCI
-            query = raw_name.split(" ")[0]
-            drug_name = self.get_nci_name(query)
+            # Match full leading phrase so descriptor tokens (e.g. Sterile) are skipped.
+            drug_name = self.get_nci_name(raw_name)
             if not drug_name:
                 continue
 

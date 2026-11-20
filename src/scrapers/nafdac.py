@@ -339,8 +339,8 @@ class NafDacScraper(BaseScraper):
             if not product_name:
                 product_name = self._extract_product_name_from_text(detail_scraped["html"])
 
-            query = _get_first_name(product_name)
-            drug_name = self.get_nci_name(query)
+            # Match full product phrase so descriptor tokens (e.g. Sterile) are skipped.
+            drug_name = self.get_nci_name(product_name)
 
             if not drug_name:
                 continue

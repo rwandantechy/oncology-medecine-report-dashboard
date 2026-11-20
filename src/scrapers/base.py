@@ -12,7 +12,12 @@ from bs4 import BeautifulSoup
 
 from src.models import DrugAlert
 
-from .utils import extract_drug_token, normalize_drug_name, read_json
+from .utils import (
+    NON_DRUG_LEADING_TOKENS,
+    extract_drug_token,
+    match_oncology_token,
+    read_json,
+)
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -89,7 +94,7 @@ class BaseScraper(ABC):
 
     @final
     def get_nci_name(self, drug_name: str, approved_drugs: list = None) -> Optional[str]:
-        """Look up the NCI dictionary for the drug name."""
+        """Look up the NCI dictionary for a product name or phrase."""
 
         if approved_drugs is None:
             approved_drugs = []
@@ -100,11 +105,7 @@ class BaseScraper(ABC):
         if not approved_drugs:
             approved_drugs = self.fetch_oncology_drug_names()
 
-        normalized = normalize_drug_name(drug_name)
-        if normalized in approved_drugs:
-            return normalized.capitalize()
-        else:
-            return None
+        return match_oncology_token(drug_name, approved_drugs)
 
     def fetch_oncology_drug_names(self) -> list[str]:
         """Get the approved cancer drugs."""
@@ -123,10 +124,16 @@ class BaseScraper(ABC):
         for ul in uls:
             for li in ul.select("li"):
                 name = li.get_text(strip=True)
-                drug_names.append(extract_drug_token(name))
+                token = extract_drug_token(name)
+                if token:
+                    drug_names.append(token)
 
-        # Remove duplicates while preserving order
-        drug_names = list(dict.fromkeys(drug_names))
+        # Remove duplicates while preserving order; never keep descriptor tokens.
+        drug_names = [
+            name
+            for name in dict.fromkeys(drug_names)
+            if name not in NON_DRUG_LEADING_TOKENS
+        ]
         self.oncology_drugs = drug_names
         with open(self.oncology_drugs_path, "w") as f:
             json.dump(drug_names, f, indent=2)
