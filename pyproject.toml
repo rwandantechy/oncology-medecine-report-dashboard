@@ -28,6 +28,12 @@ dev = [
     "pytest-anyio",
     "httpx",
 ]
+pipeline = [
+    "prefect>=2.14",
+    "crawl4ai>=0.4",
+    "playwright>=1.40",
+    "scrapy>=2.11",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

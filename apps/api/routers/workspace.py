@@ -8,7 +8,8 @@ from fastapi.responses import StreamingResponse
 from ..core import content, settings
 from ..dependencies import WORKSPACE
 from ..schemas.research import ResearchQuestion
-from ..services import alerts, insights, research
+from ..schemas.review import ReviewActionResult, ReviewPage
+from ..services import alerts, insights, research, review
 
 router = APIRouter(tags=["workspace"], dependencies=WORKSPACE)
 
@@ -61,3 +62,30 @@ def download_report() -> StreamingResponse:
 @router.post("/api/research/ask")
 def ask_research_question(payload: ResearchQuestion) -> dict:
     return research.answer(payload.question.strip())
+
+
+@router.get("/api/review/pending", response_model=ReviewPage)
+def review_pending() -> dict:
+    return review.pending()
+
+
+@router.post("/api/review/{record_id}/approve", response_model=ReviewActionResult)
+def review_approve(record_id: str) -> dict:
+    try:
+        return review.approve(record_id)
+    except review.NotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=content.ERRORS["review_not_found"],
+        ) from error
+
+
+@router.post("/api/review/{record_id}/reject", response_model=ReviewActionResult)
+def review_reject(record_id: str) -> dict:
+    try:
+        return review.reject(record_id)
+    except review.NotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=content.ERRORS["review_not_found"],
+        ) from error

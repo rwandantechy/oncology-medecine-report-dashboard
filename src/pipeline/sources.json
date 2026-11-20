@@ -1,0 +1,63 @@
+[
+  {
+    "id": "FDA_US",
+    "org": "U.S. Food and Drug Administration (FDA)",
+    "kind": "existing_scraper",
+    "scraper": "fdausa",
+    "enabled": true
+  },
+  {
+    "id": "HEALTH_CANADA",
+    "org": "Health Canada",
+    "kind": "existing_scraper",
+    "scraper": "healthcanada",
+    "enabled": true
+  },
+  {
+    "id": "FDA_GH",
+    "org": "Food and Drugs Authority (Ghana)",
+    "kind": "existing_scraper",
+    "scraper": "fdaghana",
+    "enabled": false
+  },
+  {
+    "id": "NAFDAC_NG",
+    "org": "National Agency for Food and Drug Administration and Control (NAFDAC)",
+    "kind": "existing_scraper",
+    "scraper": "nafdac",
+    "enabled": false
+  },
+  {
+    "id": "EXAMPLE_API",
+    "org": "Example regulator API",
+    "kind": "api",
+    "enabled": false,
+    "url": "",
+    "params": {},
+    "results_path": "results",
+    "field_map": {
+      "record_key": "event_id",
+      "product_name": "product_description",
+      "publish_date": "report_date",
+      "reason": "reason_for_recall",
+      "manufacturer": "recalling_firm",
+      "source_country": "country",
+      "more_info": "code_info",
+      "source_url": ""
+    }
+  },
+  {
+    "id": "EXAMPLE_BROWSER",
+    "org": "Example regulator website",
+    "kind": "browser",
+    "enabled": false,
+    "url": ""
+  },
+  {
+    "id": "EXAMPLE_SCRAPY",
+    "org": "Example structured website",
+    "kind": "scrapy",
+    "enabled": false,
+    "url": ""
+  }
+]

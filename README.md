@@ -54,3 +54,30 @@ uv run pytest
 Configuration lives in `env.example`; copy it to `.env`, which is ignored.
 Every operational value the API reads comes from the environment, so no key,
 path, limit, or label is hardcoded.
+
+## Ingest pipeline
+
+The Prefect-style ingest path lives under `src/pipeline`. It reuses the
+existing scrapers, can collect API/browser/Scrapy sources from a JSON registry,
+saves original responses, validates with Pydantic, and routes failures into a
+review queue.
+
+```bash
+cp src/pipeline/sources.example.json src/pipeline/sources.json
+# edit sources.json, then in .env:
+# PIPELINE_SOURCES_FILE=src/pipeline/sources.json
+
+PYTHONPATH=.:src uv run python -m src.pipeline.main
+PYTHONPATH=.:src uv run python -m src.pipeline.main --list-pending
+PYTHONPATH=.:src uv run python -m src.pipeline.main --approve <record_id>
+```
+
+From the workspace root you can also run ``make pipeline``.
+```
+
+Optional browser/Scrapy/Prefect extras:
+
+```bash
+uv sync --extra pipeline
+uv run playwright install
+```

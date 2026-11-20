@@ -22,6 +22,7 @@ ERRORS = {
     "no_snapshot": "These notices are not available right now.",
     "no_active_snapshot": "These notices are not available right now.",
     "alert_not_found": "This notice was not found.",
+    "review_not_found": "This notice is not waiting for review.",
     "invalid_request": "The request could not be accepted: {reason}",
     "auth_not_configured": (
         "The research workspace is temporarily unavailable. Please try again shortly."
