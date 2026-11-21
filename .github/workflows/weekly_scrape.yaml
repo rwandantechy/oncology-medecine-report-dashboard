@@ -68,15 +68,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Stage outputs (only if they exist)
+          # Stage outputs (force in case a local ignore rule covers them)
           if [ -f "$DB_PATH" ]; then
-            git add "$DB_PATH"
+            git add -f "$DB_PATH"
           else
             echo "DB not found at $DB_PATH (skipping)"
           fi
 
           # Add CSVs (glob may match nothing; suppress error)
-          git add $CSV_GLOB 2>/dev/null || true
+          git add -f $CSV_GLOB 2>/dev/null || true
 
           # Only commit if there are staged changes
           if git diff --cached --quiet; then
