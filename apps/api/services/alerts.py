@@ -9,6 +9,7 @@ from typing import Any
 from ..core import rules
 from ..db import snapshot
 from ..schemas.alerts import AlertFilters
+from .source_links import map_official_source_urls, with_official_source_url
 
 SEARCHABLE = "lower(coalesce(product_name, '') || ' ' || coalesce(reason, ''))"
 
@@ -57,7 +58,7 @@ def search(filters: AlertFilters) -> dict[str, Any]:
             [*params, filters.page_size, offset],
         ).fetchall()
     return {
-        "items": [dict(row) for row in found],
+        "items": map_official_source_urls([dict(row) for row in found]),
         "total": total,
         "page": filters.page,
         "page_size": filters.page_size,
@@ -65,17 +66,18 @@ def search(filters: AlertFilters) -> dict[str, Any]:
 
 
 def get(record_id: str) -> dict[str, Any] | None:
-    return snapshot.row(f"{ALL_COLUMNS} WHERE record_id = ?", (record_id,))
+    found = snapshot.row(f"{ALL_COLUMNS} WHERE record_id = ?", (record_id,))
+    return with_official_source_url(found) if found else None
 
 
 def evidence() -> list[dict[str, Any]]:
     """Every record, trimmed to the fields the assistant is allowed to read."""
-    return snapshot.rows(EVIDENCE_COLUMNS)
+    return map_official_source_urls(snapshot.rows(EVIDENCE_COLUMNS))
 
 
 def report_csv() -> str:
     """The full snapshot as CSV, with a header even when it is empty."""
-    records = snapshot.rows(REPORT_QUERY)
+    records = map_official_source_urls(snapshot.rows(REPORT_QUERY))
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(rules.REPORT_COLUMNS)

@@ -10,6 +10,8 @@ from __future__ import annotations
 from src.pipeline.models import DraftAlert
 from src.pipeline.review import service as queue
 
+from .source_links import with_official_source_url
+
 
 class NotFound(LookupError):
     """The record is not waiting in the review queue."""
@@ -20,7 +22,7 @@ def _item(alert: DraftAlert) -> dict:
     payload["status"] = alert.status.value
     payload["validation_errors"] = list(alert.validation_errors)
     payload["extraction_method"] = alert.extraction_method
-    return payload
+    return with_official_source_url(payload)
 
 
 def pending() -> dict:
