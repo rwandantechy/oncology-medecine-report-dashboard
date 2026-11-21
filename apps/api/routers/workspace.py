@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from ..core import content, settings
 from ..dependencies import WORKSPACE
 from ..schemas.research import ResearchQuestion
-from ..schemas.review import ReviewActionResult, ReviewPage
+from ..schemas.review import ReviewActionResult, ReviewItem, ReviewPage, ReviewUpdate
 from ..services import alerts, insights, research, review
 
 router = APIRouter(tags=["workspace"], dependencies=WORKSPACE)
@@ -69,6 +69,23 @@ def review_pending() -> dict:
     return review.pending()
 
 
+@router.patch("/api/review/{record_id}", response_model=ReviewItem)
+def review_update(record_id: str, payload: ReviewUpdate) -> dict:
+    fields = payload.model_dump(exclude_unset=True)
+    if not fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=content.ERRORS["invalid_request"].format(reason="no fields to update"),
+        )
+    try:
+        return review.update(record_id, fields)
+    except review.NotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=content.ERRORS["review_not_found"],
+        ) from error
+
+
 @router.post("/api/review/{record_id}/approve", response_model=ReviewActionResult)
 def review_approve(record_id: str) -> dict:
     try:
@@ -84,6 +101,17 @@ def review_approve(record_id: str) -> dict:
 def review_reject(record_id: str) -> dict:
     try:
         return review.reject(record_id)
+    except review.NotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=content.ERRORS["review_not_found"],
+        ) from error
+
+
+@router.delete("/api/review/{record_id}", response_model=ReviewActionResult)
+def review_delete(record_id: str) -> dict:
+    try:
+        return review.remove(record_id)
     except review.NotFound as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

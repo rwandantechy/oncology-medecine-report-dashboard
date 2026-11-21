@@ -13,7 +13,7 @@ from src.database import upsert_df
 from src.models import DrugAlert
 
 from .base import BaseScraper
-from .utils import parse_date
+from .utils import absolutize, normalize_source_url, parse_date
 
 
 class HealthCanadaScraper(BaseScraper):
@@ -101,8 +101,11 @@ class HealthCanadaScraper(BaseScraper):
             if not drug_name:
                 continue
 
-            # URL fields in dataset commonly look like a full detail-page URL
-            source_url = rec.get("URL")
+            # Prefer the public HTML alert page, never the open-data JSON feed.
+            raw_url = (rec.get("URL") or "").strip()
+            if raw_url.startswith("/"):
+                raw_url = absolutize(self.cfg["base_url"], raw_url)
+            source_url = normalize_source_url(self.source_id, raw_url or self.cfg["base_url"])
 
             reason = rec.get("Issue")
 

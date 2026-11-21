@@ -137,9 +137,37 @@ def test_match_oncology_token_accepts_hyphenated_biologic(utils_mod):
     )
 
 
+def test_match_oncology_token_rejects_ac_eye_drops_and_pepcid(utils_mod):
+    approved = ["ac", "azacitidine", "mitomycin"]
+    assert utils_mod.match_oncology_token("Sterile EYE DROPS AC", approved) is None
+    assert utils_mod.match_oncology_token("PEPCID AC MAXIMUM STRENGTH", approved) is None
+    assert utils_mod.match_oncology_token("Guaiatussin AC Sugar-Free", approved) is None
+    assert utils_mod.match_oncology_token("HUMAN CHORIONIC GONADOTROPIN", approved) is None
+    assert utils_mod.match_oncology_token("Mitomycin 0.04% Ophth DR eye drops", approved) is None
+
+
+def test_match_oncology_token_accepts_leading_ac_regimen(utils_mod):
+    approved = ["ac", "ac-t"]
+    assert utils_mod.match_oncology_token("AC", approved) == "Ac"
+    assert utils_mod.match_oncology_token("AC-T", approved) == "Ac-t"
+
+
 def test_match_oncology_token_accepts_direct_oncology_name(utils_mod):
     approved = ["azacitidine", "herceptin"]
     assert utils_mod.match_oncology_token("Azacitidine Injection", approved) == "Azacitidine"
+
+
+def test_normalize_source_url_rewrites_openfda_json(utils_mod):
+    html = utils_mod.normalize_source_url(
+        "FDA_US",
+        "https://api.fda.gov/drug/enforcement.json?search=event_id:86749",
+    )
+    assert html == "https://www.accessdata.fda.gov/scripts/ires/index.cfm?Event=86749"
+
+
+def test_normalize_source_url_keeps_html(utils_mod):
+    url = "https://nafdac.gov.ng/public-alert-no-011-2023-alert-on-confirmed-counterfeit-herceptin/"
+    assert utils_mod.normalize_source_url("NAFDAC_NG", url) == url
 
 
 def test_nci_json_matches_authoritative_tokens():

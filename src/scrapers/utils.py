@@ -40,10 +40,66 @@ NON_DRUG_LEADING_TOKENS = frozenset(
 )
 
 
+FDA_IRES_EVENT_URL = (
+    "https://www.accessdata.fda.gov/scripts/ires/index.cfm?Event={event_id}"
+)
+FDA_IRES_PRODUCT_URL = (
+    "https://www.accessdata.fda.gov/scripts/ires/index.cfm?Product={recall_number}"
+)
+FDA_RECALLS_HOME = "https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts"
+_OPENFDA_EVENT_RE = re.compile(r"event_id:(\d+)", re.IGNORECASE)
+
+
 def absolutize(base_url: str, href: str) -> str:
     """Join two urls."""
 
     return urljoin(base_url, href)
+
+
+def fda_enforcement_html_url(
+    *,
+    event_id: str | None = None,
+    recall_number: str | None = None,
+) -> str:
+    """Official FDA Enforcement Report HTML page (not openFDA JSON)."""
+
+    recall_number = (recall_number or "").strip()
+    event_id = (event_id or "").strip()
+    if recall_number:
+        return FDA_IRES_PRODUCT_URL.format(recall_number=recall_number)
+    if event_id:
+        return FDA_IRES_EVENT_URL.format(event_id=event_id)
+    return FDA_RECALLS_HOME
+
+
+def normalize_source_url(source_id: str | None, source_url: str | None) -> str | None:
+    """Rewrite machine JSON endpoints to human-readable regulator HTML pages."""
+
+    if not source_url:
+        return source_url
+    url = source_url.strip()
+    sid = (source_id or "").strip().upper()
+
+    if sid == "FDA_US" or "api.fda.gov" in url:
+        match = _OPENFDA_EVENT_RE.search(url)
+        if match:
+            return fda_enforcement_html_url(event_id=match.group(1))
+        if "api.fda.gov" in url:
+            return FDA_RECALLS_HOME
+
+    if sid == "HEALTH_CANADA":
+        if url.endswith(".json") or "opendata" in url.lower():
+            return "https://recalls-rappels.canada.ca/en"
+        if url.startswith("/"):
+            return absolutize("https://recalls-rappels.canada.ca", url)
+
+    if sid == "NAFDAC_NG" and url.startswith("/"):
+        return absolutize("https://nafdac.gov.ng", url)
+
+    if sid == "FDA_GH" and url.startswith("/"):
+        return absolutize("https://fdaghana.gov.gh", url)
+
+    return url
 
 
 def parse_date(value: Optional[str]) -> Optional[datetime]:
@@ -131,10 +187,46 @@ def extract_drug_token(text: str) -> str | None:
     return None
 
 
+# Consumer / non-oncology product phrases that must never match NCI tokens.
+NON_ONCOLOGY_PHRASE_MARKERS = frozenset(
+    {
+        "eye drop",
+        "eye drops",
+        "lubricant eye",
+        "redness relief",
+        "tetrahydrozoline",
+        "naphazoline",
+        "zinc sulfate",
+        "pepcid",
+        "guaifenesin",
+        "guaiatussin",
+        "chorionic gonadotropin",
+        "human chorionic",
+        "chewable tab",
+        "sugar-free",
+        "sugar free",
+    }
+)
+
+# Short NCI regimen codes (e.g. AC) are easy false positives inside other names.
+_SHORT_TOKEN_MAX_LEN = 2
+
+
+def _looks_non_oncology_product(text: str) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in NON_ONCOLOGY_PHRASE_MARKERS)
+
+
 def match_oncology_token(text: str, approved_drugs: list[str] | set[str]) -> str | None:
-    """Match ``text`` against the oncology allowlist, skipping descriptor tokens."""
+    """Match ``text`` against the oncology allowlist, skipping descriptor tokens.
+
+    Short regimen codes (length ≤ 2, e.g. ``ac``) only match when they are the
+    first medication-like token — never buried inside "Pepcid AC" or "Eye Drops AC".
+    """
 
     if not text or not approved_drugs:
+        return None
+    if _looks_non_oncology_product(text):
         return None
 
     approved = set(approved_drugs)
@@ -146,10 +238,19 @@ def match_oncology_token(text: str, approved_drugs: list[str] | set[str]) -> str
     if normalized in approved and normalized not in NON_DRUG_LEADING_TOKENS:
         return normalized.capitalize()
 
+    first_token_seen = False
     for token in normalized.split():
         cleaned = _clean_drug_token(token)
-        if cleaned and cleaned in approved:
-            return cleaned.capitalize()
+        if not cleaned:
+            continue
+        is_first = not first_token_seen
+        first_token_seen = True
+        if cleaned not in approved:
+            continue
+        # Short codes like "ac" only count as the leading product identity.
+        if len(cleaned) <= _SHORT_TOKEN_MAX_LEN and not is_first:
+            continue
+        return cleaned.capitalize()
     return None
 
 

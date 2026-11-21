@@ -140,7 +140,7 @@ DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "v2.db"
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,https://oncosmart.vercel.app"
 
 # Auth can rotate a session with PATCH; everything else is GET or POST.
-CORS_METHODS = tuple(os.getenv("V2_CORS_METHODS", "GET,POST,PATCH").split(","))
+CORS_METHODS = tuple(os.getenv("V2_CORS_METHODS", "GET,POST,PATCH,DELETE").split(","))
 CORS_HEADERS = tuple(os.getenv("V2_CORS_HEADERS", "*").split(","))
 # The CSV export is fetched with an access token rather than followed as a
 # link, so the browser needs permission to read the filename the API chose.

@@ -142,3 +142,21 @@ def set_review_status(
         f"UPDATE {table} SET status = ? WHERE record_id = ?",
         (status.value, record_id),
     )
+
+
+def approved_exists(connection: sqlite3.Connection, record_id: str) -> bool:
+    table = settings.approved_table()
+    row = connection.execute(
+        f"SELECT 1 FROM {table} WHERE record_id = ? LIMIT 1",
+        (record_id,),
+    ).fetchone()
+    return row is not None
+
+
+def delete_review(connection: sqlite3.Connection, record_id: str) -> bool:
+    table = settings.review_table()
+    cursor = connection.execute(
+        f"DELETE FROM {table} WHERE record_id = ?",
+        (record_id,),
+    )
+    return cursor.rowcount > 0

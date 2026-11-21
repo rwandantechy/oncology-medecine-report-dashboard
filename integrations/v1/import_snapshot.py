@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+from src.scrapers.utils import normalize_source_url
+
 REQUIRED_COLUMNS = {
     "record_id", "source_id", "source_org", "source_url", "product_name",
     "source_country", "manufacturer", "distributor", "publish_date",
@@ -43,6 +45,7 @@ def validate(source: Path) -> tuple[list[dict], list[str]]:
     errors: list[str] = []
     seen: set[str] = set()
     for index, row in enumerate(rows, start=1):
+        row["source_url"] = normalize_source_url(row.get("source_id"), row.get("source_url"))
         for field in ("record_id", "source_id", "source_org", "source_url", "scraped_at"):
             if not str(row.get(field) or "").strip():
                 errors.append(f"row {index}: blank required field {field}")
@@ -53,6 +56,11 @@ def validate(source: Path) -> tuple[list[dict], list[str]]:
         parsed = urlparse(str(row.get("source_url") or ""))
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             errors.append(f"row {index}: invalid source_url")
+        # Reject machine JSON endpoints that are not doctor-readable.
+        host = (parsed.netloc or "").lower()
+        path = (parsed.path or "").lower()
+        if "api.fda.gov" in host or path.endswith(".json"):
+            errors.append(f"row {index}: source_url must be an HTML notice page, not JSON")
     return rows, errors
 
 

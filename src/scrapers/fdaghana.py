@@ -16,6 +16,7 @@ from src.models import DrugAlert
 
 from .base import BaseScraper
 from .config import FDA_GH
+from .utils import normalize_source_url
 
 
 def _safe_json_loads(text: str) -> Dict[str, Any]:
@@ -396,7 +397,9 @@ class FDAGhanaScraper(BaseScraper):
             source_id=self.source_id,
             source_org=self.source_org,
             source_country=self.source_country,
-            source_url=source_url or self.cfg["listing_url"],
+            source_url=normalize_source_url(
+                self.source_id, source_url or self.cfg["listing_url"]
+            ),
             publish_date=publish_dt.isoformat().split("T")[0] if publish_dt else None,
             manufacturer=manufacturer,
             distributor=recalling_firm,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReviewItem(BaseModel):
@@ -35,3 +35,17 @@ class ReviewPage(BaseModel):
 class ReviewActionResult(BaseModel):
     record_id: str
     status: str
+
+
+class ReviewUpdate(BaseModel):
+    """Editable fields a reviewer may correct before approving."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    product_name: Optional[str] = Field(default=None, max_length=500)
+    reason: Optional[str] = Field(default=None, max_length=4000)
+    more_info: Optional[str] = Field(default=None, max_length=20000)
+    manufacturer: Optional[str] = Field(default=None, max_length=500)
+    distributor: Optional[str] = Field(default=None, max_length=500)
+    publish_date: Optional[str] = Field(default=None, max_length=32)
+    source_country: Optional[str] = Field(default=None, max_length=120)

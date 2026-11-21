@@ -15,7 +15,7 @@ from src.database import upsert_df
 from src.models import DrugAlert
 
 from .base import BaseScraper
-from .utils import absolutize, parse_date
+from .utils import absolutize, normalize_source_url, parse_date
 
 # --- NAFDAC-specific helpers (table parsing, label normalization, etc.) ---
 
@@ -370,7 +370,7 @@ class NafDacScraper(BaseScraper):
                     source_id=self.source_id,
                     source_org=self.source_org,
                     source_country=parsed.get("source_country") or "Nigeria",
-                    source_url=detail_url,
+                    source_url=normalize_source_url(self.source_id, detail_url),
                     publish_date=publish_date.isoformat().split("T")[0],
                     manufacturer=manufacturer,
                     reason=parsed.get("title"),

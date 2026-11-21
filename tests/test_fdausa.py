@@ -92,7 +92,19 @@ def test_standardize_mocked(fdausa_scraper, monkeypatch) -> None:
     assert "Lack of Assurance of Sterility" in (r.reason or "")
     assert r.record_id
     assert len(r.record_id) > 10
-    assert "9999" in (r.source_url or "")
+    assert r.source_url == (
+        "https://www.accessdata.fda.gov/scripts/ires/index.cfm?Event=9999"
+    )
+
+
+def test_official_html_url_prefers_recall_number(fdausa_scraper) -> None:
+    """Product-level iRES HTML is preferred when recall_number is present."""
+    url = fdausa_scraper._official_html_url(
+        {"event_id": "86749", "recall_number": "D-0122-2021"}
+    )
+    assert url == (
+        "https://www.accessdata.fda.gov/scripts/ires/index.cfm?Product=D-0122-2021"
+    )
 
 
 def test_standardize_skips_non_oncology_drugs(fdausa_scraper, monkeypatch) -> None:

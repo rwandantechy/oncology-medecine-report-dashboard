@@ -15,7 +15,7 @@ from src.database import upsert_df
 from src.models import DrugAlert
 
 from .base import BaseScraper
-from .utils import parse_date
+from .utils import fda_enforcement_html_url, parse_date
 
 
 class FDAUSAScraper(BaseScraper):
@@ -64,6 +64,14 @@ class FDAUSAScraper(BaseScraper):
         )
         distributor_match = re.search(pattern, text, re.IGNORECASE)
         return distributor_match.group(1).strip() if distributor_match else None
+
+    def _official_html_url(self, record: dict) -> str:
+        """Prefer the official FDA Enforcement Report HTML page over openFDA JSON."""
+
+        return fda_enforcement_html_url(
+            event_id=record.get("event_id"),
+            recall_number=record.get("recall_number"),
+        )
 
     def _fetch_all_openfda(
         self,
@@ -123,7 +131,6 @@ class FDAUSAScraper(BaseScraper):
         data = self._fetch_all_openfda(self.cfg["api_endpoint"], params)
 
         for record in data:
-            url = self.cfg["api_endpoint"] + "?search=event_id:" + record.get("event_id", "")
             description = record["product_description"]
             product_name = description.split(",")[0]
             manufacturer = self._get_manufacturer(description)
@@ -143,7 +150,7 @@ class FDAUSAScraper(BaseScraper):
                     source_id=self.source_id,
                     source_org=self.source_org,
                     source_country=record["country"],
-                    source_url=url,
+                    source_url=self._official_html_url(record),
                     publish_date=parse_date(record["report_date"]).isoformat().split("T")[0],
                     manufacturer=manufacturer,
                     distributor=distributor,

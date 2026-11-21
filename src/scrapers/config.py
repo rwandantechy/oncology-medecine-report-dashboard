@@ -4,6 +4,9 @@ FDA_US = {
     "source_org": "U.S. Food and Drug Administration (FDA)",
     "base_url": "https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts",
     "api_endpoint": "https://api.fda.gov/drug/enforcement.json",
+    # Official human-readable Enforcement Report (iRES) HTML — not the openFDA JSON.
+    "html_event_url": "https://www.accessdata.fda.gov/scripts/ires/index.cfm?Event={event_id}",
+    "html_product_url": "https://www.accessdata.fda.gov/scripts/ires/index.cfm?Product={recall_number}",
 }
 
 FDA_GH = {

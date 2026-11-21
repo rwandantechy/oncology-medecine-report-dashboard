@@ -38,3 +38,16 @@ def reject(record_id: str) -> dict:
     if not queue.reject(record_id):
         raise NotFound(record_id)
     return {"record_id": record_id, "status": "rejected"}
+
+
+def update(record_id: str, fields: dict) -> dict:
+    alert = queue.update(record_id, fields)
+    if alert is None:
+        raise NotFound(record_id)
+    return _item(alert)
+
+
+def remove(record_id: str) -> dict:
+    if not queue.remove(record_id):
+        raise NotFound(record_id)
+    return {"record_id": record_id, "status": "deleted"}
