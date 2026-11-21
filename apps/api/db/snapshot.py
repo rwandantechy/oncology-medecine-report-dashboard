@@ -1,9 +1,4 @@
-"""Read access to the imported V2 snapshot.
-
-The snapshot is the read source for every public and workspace query; Atlas
-holds a published mirror. Every statement goes through here so that connection
-handling and row conversion exist once, and so no SQL is written in a route.
-"""
+"""Read access to the imported V2 snapshot."""
 
 from __future__ import annotations
 

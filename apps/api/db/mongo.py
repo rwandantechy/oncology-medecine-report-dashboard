@@ -1,10 +1,4 @@
-"""Shared MongoDB Atlas access.
-
-One client per process, built lazily from ``MONGODB_URI`` so the snapshot
-endpoints keep working when Atlas is not configured. Both the authentication
-store and the Atlas export go through here rather than opening their own
-connections.
-"""
+"""Shared MongoDB Atlas access."""
 
 from __future__ import annotations
 

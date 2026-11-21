@@ -1,10 +1,4 @@
-"""Model-backed explanation service with strict evidence boundaries.
-
-Generation runs through whichever provider ``AI_PROVIDER`` selects. Every path
-falls back to snapshot-derived output, so answers never depend on a model.
-Prompts live in :mod:`apps.api.core.prompts`, response copy in
-:mod:`apps.api.core.content`, and keyword rules in :mod:`apps.api.core.rules`.
-"""
+"""Model-backed explanation service with strict evidence boundaries."""
 
 from __future__ import annotations
 

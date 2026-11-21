@@ -1,9 +1,4 @@
-"""Assembles the evidence a question is allowed to be answered from.
-
-The model never queries the snapshot itself. This module selects the records
-and the summary, and :mod:`apps.api.services.grounded_ai` turns them into an
-answer that always degrades to a direct snapshot calculation.
-"""
+"""Assembles the evidence a question is allowed to be answered from."""
 
 from __future__ import annotations
 

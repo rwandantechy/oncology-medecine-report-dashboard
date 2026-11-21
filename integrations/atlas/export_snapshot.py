@@ -1,17 +1,4 @@
-"""Publish the active V2 SQLite snapshot to MongoDB Atlas.
-
-The SQLite snapshot remains the read source for the API; this publishes a
-mirror for use outside it, so run it again after any re-import.
-
-Mirrors the V1 import boundary: read the active snapshot, verify it against its
-recorded row count, write every record, then remove anything left over from a
-superseded snapshot. ``record_id`` is the document ``_id``, so re-running is an
-idempotent upsert rather than a duplicate load.
-
-Usage:
-    PYTHONPATH=. uv run python integrations/atlas/export_snapshot.py --dry-run
-    PYTHONPATH=. uv run python integrations/atlas/export_snapshot.py
-"""
+"""Publish the active V2 SQLite snapshot to MongoDB Atlas."""
 
 from __future__ import annotations
 

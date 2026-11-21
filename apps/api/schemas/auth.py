@@ -1,8 +1,4 @@
-"""Request and response shapes for accounts and sessions.
-
-Length limits come from configuration so the API, the sign-up form, and the
-documentation cannot drift apart.
-"""
+"""Request and response shapes for accounts and sessions."""
 
 from __future__ import annotations
 

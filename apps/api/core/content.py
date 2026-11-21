@@ -1,9 +1,4 @@
-"""Every string the API returns to a client.
-
-Keeping response copy, error details, and standing limitation notices here means
-wording can be reviewed and changed without touching request handling or the
-grounding logic. Templates use ``str.format`` placeholders.
-"""
+"""Every string the API returns to a client."""
 
 from __future__ import annotations
 
@@ -23,6 +18,10 @@ ERRORS = {
     "no_active_snapshot": "These notices are not available right now.",
     "alert_not_found": "This notice was not found.",
     "review_not_found": "This notice is not waiting for review.",
+    "review_write_unavailable": (
+        "Review actions could not be saved. The workspace database is not writable "
+        "in this environment."
+    ),
     "invalid_request": "The request could not be accepted: {reason}",
     "auth_not_configured": (
         "The research workspace is temporarily unavailable. Please try again shortly."

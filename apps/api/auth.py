@@ -1,8 +1,4 @@
-"""Compatibility exports for the session dependency and account shapes.
-
-New code should import from :mod:`apps.api.dependencies` and
-:mod:`apps.api.schemas.auth`.
-"""
+"""Compatibility exports for the session dependency and account shapes."""
 
 from .dependencies import current_user
 from .schemas.auth import LoginRequest, RegisterRequest, SessionUser

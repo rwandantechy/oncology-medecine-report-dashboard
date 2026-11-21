@@ -1,9 +1,4 @@
-"""Environment-backed API configuration.
-
-Values are read on each call rather than frozen at import time so that a process
-started with a different ``--env-file`` (and tests that patch the environment)
-always see the current configuration.
-"""
+"""Environment-backed API configuration."""
 
 from __future__ import annotations
 
@@ -202,6 +197,7 @@ MONGO_TIMEOUT_MS = _whole("MONGODB_TIMEOUT_MS", 5000)
 USERS_COLLECTION = os.getenv("MONGODB_USERS_COLLECTION", "users")
 ALERTS_COLLECTION = os.getenv("MONGODB_ALERTS_COLLECTION", "alerts")
 SNAPSHOTS_COLLECTION = os.getenv("MONGODB_SNAPSHOTS_COLLECTION", "snapshots")
+REVIEW_COLLECTION = os.getenv("MONGODB_REVIEW_COLLECTION", "review_queue")
 DEFAULT_USER_ROLE = os.getenv("V2_DEFAULT_USER_ROLE", "researcher")
 NAME_MIN_LENGTH = _whole("V2_NAME_MIN_LENGTH", 2)
 NAME_MAX_LENGTH = _whole("V2_NAME_MAX_LENGTH", 120)

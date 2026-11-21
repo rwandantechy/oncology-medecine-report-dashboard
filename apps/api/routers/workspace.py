@@ -69,6 +69,18 @@ def review_pending() -> dict:
     return review.pending()
 
 
+def _review_write_error(error: Exception) -> HTTPException:
+    if isinstance(error, review.WriteUnavailable):
+        return HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error) or content.ERRORS["review_write_unavailable"],
+        )
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=content.ERRORS["review_not_found"],
+    )
+
+
 @router.patch("/api/review/{record_id}", response_model=ReviewItem)
 def review_update(record_id: str, payload: ReviewUpdate) -> dict:
     fields = payload.model_dump(exclude_unset=True)
@@ -79,41 +91,29 @@ def review_update(record_id: str, payload: ReviewUpdate) -> dict:
         )
     try:
         return review.update(record_id, fields)
-    except review.NotFound as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=content.ERRORS["review_not_found"],
-        ) from error
+    except (review.NotFound, review.WriteUnavailable) as error:
+        raise _review_write_error(error) from error
 
 
 @router.post("/api/review/{record_id}/approve", response_model=ReviewActionResult)
 def review_approve(record_id: str) -> dict:
     try:
         return review.approve(record_id)
-    except review.NotFound as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=content.ERRORS["review_not_found"],
-        ) from error
+    except (review.NotFound, review.WriteUnavailable) as error:
+        raise _review_write_error(error) from error
 
 
 @router.post("/api/review/{record_id}/reject", response_model=ReviewActionResult)
 def review_reject(record_id: str) -> dict:
     try:
         return review.reject(record_id)
-    except review.NotFound as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=content.ERRORS["review_not_found"],
-        ) from error
+    except (review.NotFound, review.WriteUnavailable) as error:
+        raise _review_write_error(error) from error
 
 
 @router.delete("/api/review/{record_id}", response_model=ReviewActionResult)
 def review_delete(record_id: str) -> dict:
     try:
         return review.remove(record_id)
-    except review.NotFound as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=content.ERRORS["review_not_found"],
-        ) from error
+    except (review.NotFound, review.WriteUnavailable) as error:
+        raise _review_write_error(error) from error

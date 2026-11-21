@@ -1,10 +1,4 @@
-"""Prompt templates for grounded generation.
-
-These are the safety boundary for model output: they constrain the model to the
-supplied evidence and forbid clinical inference. Edit them here rather than in
-the request handling code, and keep the stated JSON contract in step with the
-schemas in :mod:`apps.api.grounded_ai`.
-"""
+"""Prompt templates for grounded generation."""
 
 from __future__ import annotations
 

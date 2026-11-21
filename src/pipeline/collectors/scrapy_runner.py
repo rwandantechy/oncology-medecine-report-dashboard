@@ -1,8 +1,4 @@
-"""Thin Scrapy entry for stable, structured regulator sites.
-
-Source URL comes from the sources file. Install the optional pipeline extras
-before using this collector.
-"""
+"""Thin Scrapy entry for stable, structured regulator sites."""
 
 from __future__ import annotations
 

@@ -1,15 +1,4 @@
-"""Password hashing and access-token issuing.
-
-Deliberately free of FastAPI: HTTP status codes and headers are applied in
-:mod:`apps.api.dependencies`, so these functions can also be used from a
-command-line task without pulling in the web layer.
-
-Tokens are verified statelessly. The signed claims are trusted for the lifetime
-of the token rather than re-read from Atlas on every request, which keeps the
-snapshot serving while the user store is unreachable. The trade-off is that an
-account removed from Atlas keeps access until its token expires, so the
-lifetime is kept short through ``V2_TOKEN_TTL_HOURS``.
-"""
+"""Password hashing and access-token issuing."""
 
 from __future__ import annotations
 

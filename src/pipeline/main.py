@@ -1,10 +1,4 @@
-"""CLI entry for the ingestion pipeline.
-
-Usage:
-    PYTHONPATH=. uv run python -m src.pipeline.main
-    PYTHONPATH=. uv run python -m src.pipeline.main --list-pending
-    PYTHONPATH=. uv run python -m src.pipeline.main --approve RECORD_ID
-"""
+"""CLI entry for the ingestion pipeline."""
 
 from __future__ import annotations
 

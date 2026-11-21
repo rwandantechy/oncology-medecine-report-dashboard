@@ -1,9 +1,4 @@
-"""Environment-backed pipeline configuration.
-
-Values are read on each call rather than frozen at import time so a process
-started with a different ``--env-file`` (and tests that patch the environment)
-always see the current configuration. No regulator URL or secret belongs here.
-"""
+"""Environment-backed pipeline configuration."""
 
 from __future__ import annotations
 

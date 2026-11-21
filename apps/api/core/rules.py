@@ -1,10 +1,4 @@
-"""Keyword rules and field lists that shape the snapshot analysis.
-
-These are editorial decisions about how stored text is grouped, not application
-logic, so they live apart from the handlers that apply them. Every rule is a
-keyword indicator over the imported ``reason`` field; none is a clinical
-classification.
-"""
+"""Keyword rules and field lists that shape the snapshot analysis."""
 
 from __future__ import annotations
 

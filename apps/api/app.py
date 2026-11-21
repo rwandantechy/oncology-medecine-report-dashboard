@@ -1,8 +1,4 @@
-"""FastAPI application for the V2 snapshot.
-
-Routes live in :mod:`apps.api.routers`. This module only constructs the app,
-applies CORS, and maps domain errors onto HTTP responses.
-"""
+"""FastAPI application for the V2 snapshot."""
 
 from __future__ import annotations
 

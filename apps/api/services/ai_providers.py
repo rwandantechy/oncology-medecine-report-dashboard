@@ -1,10 +1,4 @@
-"""Interchangeable JSON-producing model backends: local Ollama or Google Gemini.
-
-Both providers return a parsed JSON object for a prompt, or raise
-:class:`ProviderError`. Callers are expected to validate the shape and fall back
-to snapshot-derived output, so an unconfigured or unreachable provider degrades
-instead of failing the request.
-"""
+"""Interchangeable JSON-producing model backends: local Ollama or Google Gemini."""
 
 from __future__ import annotations
 

@@ -1,8 +1,4 @@
-"""Snapshot-derived analysis behind the research workspace.
-
-Every number here is a direct count over the imported records. Nothing is
-modelled, estimated, or projected.
-"""
+"""Snapshot-derived analysis behind the research workspace."""
 
 from __future__ import annotations
 

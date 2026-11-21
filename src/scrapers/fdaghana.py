@@ -24,10 +24,7 @@ def _safe_json_loads(text: str) -> Dict[str, Any]:
 
 
 def _detect_column_count_from_html(html: str) -> int:
-    """
-    Use the visible table header count as the DataTables column count.
-    Falls back to 13 (your observed column count).
-    """
+    """DataTables column count from table headers; default 13."""
     soup = BeautifulSoup(html, "html.parser")
     for table in soup.find_all("table"):
         t = " ".join(table.get_text(" ", strip=True).lower().split())
@@ -39,10 +36,7 @@ def _detect_column_count_from_html(html: str) -> int:
 
 
 def _find_nonce_candidates(html: str) -> List[str]:
-    """
-    Extract nonce-like tokens from listing HTML (wpDataTables can embed multiple).
-    Your successful run found 3 candidates and the working one was used as wdtNonce.
-    """
+    """Extract nonce-like tokens from wpDataTables listing HTML."""
     candidates = set()
 
     # Common direct patterns
@@ -80,10 +74,7 @@ def _make_dt_payload(
     ncols: int,
     wdt_nonce: str,
 ) -> Dict[str, str]:
-    """
-    DataTables-style payload similar to what the browser sends.
-    Note: Ghana's working combo used nonce_key = wdtNonce.
-    """
+    """Build the DataTables/wpDataTables AJAX payload (wdtNonce)."""
     payload: Dict[str, str] = {
         "action": "get_wdtable",
         "table_id": table_id,
@@ -156,10 +147,7 @@ class GhanaWpDataTablesClient:
         self._ncols = _detect_column_count_from_html(r.text)
 
     def discover_wdt_nonce(self) -> str:
-        """
-        Try each candidate as wdtNonce until we get a JSON response with data.
-        This is exactly what made your script succeed.
-        """
+        """Probe nonce candidates until wpDataTables returns JSON data."""
         if self._listing_html is None or self._ncols is None:
             self.prime()
 
@@ -251,7 +239,6 @@ class GhanaWpDataTablesClient:
                 if isinstance(r, list):
                     all_rows.append(r)
                 else:
-                    # if it ever changes to dict, keep it (but your current output is list)
                     all_rows.append(r)  # type: ignore
 
             start += len(rows)
@@ -286,10 +273,7 @@ class FDAGhanaScraper(BaseScraper):
         return r.text
 
     def _parse_detail_reason(self, url: str) -> Optional[str]:
-        """
-        Best-effort: extract "Reason for Recall" from HTML detail pages.
-        Many records are PDFs; those will skip this.
-        """
+        """Extract Reason for Recall from HTML detail pages (PDFs skipped)."""
         try:
             html = self._fetch_html(url)
         except Exception:
@@ -317,14 +301,10 @@ class FDAGhanaScraper(BaseScraper):
         return max(paras, key=len).strip() if paras else None
 
     def _row_to_alert(self, row: List[Any]) -> Optional[DrugAlert]:
-        """
-        Convert one wpDataTables row (list) into DrugAlert.
-        """
-        # Defensive: we expect at least 13 columns
+        """Convert one wpDataTables row into a DrugAlert."""
         if not isinstance(row, list) or len(row) < 13:
             return None
 
-        # Index mapping (from your examples)
         row_id = str(row[0] or "").strip()
         recall_date_raw = str(row[5] or "").strip()
         product_cell = row[6]  # HTML anchor

@@ -1,8 +1,4 @@
-"""Account operations backed by the Atlas user store.
-
-The stored password hash never leaves this module, and no handler reads the
-users collection directly.
-"""
+"""Account operations backed by the Atlas user store."""
 
 from __future__ import annotations
 

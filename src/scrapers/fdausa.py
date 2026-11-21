@@ -83,7 +83,7 @@ class FDAUSAScraper(BaseScraper):
     ):
         """Paginate openFDA results using skip/limit."""
 
-        page_size = min(page_size, 1000)  # openFDA max limit :contentReference[oaicite:1]{index=1}
+        page_size = min(page_size, 1000)  # openFDA max limit
         skip = 0
         out = []
 
@@ -112,7 +112,7 @@ class FDAUSAScraper(BaseScraper):
             if pause_s:
                 time.sleep(pause_s)
 
-            # openFDA skip has a max of 25000 :contentReference[oaicite:2]{index=2}
+            # openFDA skip has a max of 25000
             if skip > 25000:
                 raise RuntimeError("Reached openFDA skip limit (25000).")
 

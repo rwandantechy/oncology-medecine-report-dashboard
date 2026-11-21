@@ -1,7 +1,4 @@
-"""Browser collector for regulator pages that need rendering.
-
-Requires the optional ``pipeline`` dependency group (crawl4ai + playwright).
-"""
+"""Browser collector for regulator pages that need rendering."""
 
 from __future__ import annotations
 
