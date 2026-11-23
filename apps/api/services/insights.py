@@ -33,6 +33,12 @@ SOURCES_QUERY = (
     "FROM alerts GROUP BY source_org, source_country ORDER BY records DESC"
 )
 
+COUNTRY_COUNTS_QUERY = (
+    "SELECT source_country AS country, COUNT(*) AS records "
+    "FROM alerts WHERE source_country IS NOT NULL AND trim(source_country) != '' "
+    "GROUP BY source_country ORDER BY records DESC"
+)
+
 TIMELINE_QUERY = (
     "SELECT substr(publish_date, 1, 7) AS month, COUNT(*) AS records "
     "FROM alerts WHERE publish_date IS NOT NULL GROUP BY month ORDER BY month"
@@ -95,6 +101,11 @@ def summary() -> dict[str, Any]:
 
 def sources() -> list[dict[str, Any]]:
     return snapshot.rows(SOURCES_QUERY)
+
+
+def country_counts() -> list[dict[str, Any]]:
+    """Country values named in notices, for map and public geography filters."""
+    return snapshot.rows(COUNTRY_COUNTS_QUERY)
 
 
 def timeline() -> dict[str, Any]:

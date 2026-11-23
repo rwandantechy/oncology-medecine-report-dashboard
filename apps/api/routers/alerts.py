@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..core import content
 from ..schemas.alerts import Alert, AlertFilters
-from ..services import alerts
+from ..services import alerts, insights
 from ..services.grounded_ai import explain_alert_record
 
 router = APIRouter(tags=["alerts"])
@@ -17,6 +17,12 @@ router = APIRouter(tags=["alerts"])
 @router.get("/api/alerts")
 def list_alerts(filters: Annotated[AlertFilters, Depends(AlertFilters.as_query)]) -> dict:
     return alerts.search(filters)
+
+
+@router.get("/api/alerts/geo")
+def alert_geo() -> dict:
+    """Public country counts for the world map on search and workspace views."""
+    return {"countries": insights.country_counts()}
 
 
 @router.get("/api/alerts/{record_id}", response_model=Alert)
