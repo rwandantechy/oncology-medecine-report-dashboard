@@ -138,6 +138,10 @@ DEFAULT_DRUGS_LIST_CANDIDATES = (
     _REPO_ROOT / "src" / "data" / "nci_oncology_drugs.json",
     _API_ROOT / "data" / "nci_oncology_drugs.json",
 )
+DEFAULT_DRUGS_CATALOG_CANDIDATES = (
+    _REPO_ROOT / "src" / "data" / "nci_oncology_drugs_catalog.json",
+    _API_ROOT / "data" / "nci_oncology_drugs_catalog.json",
+)
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,https://oncosmart.vercel.app"
 DEFAULT_PUBLIC_APP_URL = "https://oncosmart.vercel.app/"
 NCI_DRUGS_SOURCE_URL = os.getenv(
@@ -165,7 +169,7 @@ def database_path() -> Path:
 
 
 def drugs_list_path() -> Path:
-    """NCI oncology drug-name list used for matching and the Drug list page."""
+    """NCI oncology drug-name list used for matching scrapers."""
     override = os.getenv("V2_DRUGS_LIST", "").strip()
     if override:
         return Path(override)
@@ -173,6 +177,18 @@ def drugs_list_path() -> Path:
         if candidate.is_file():
             return candidate
     return DEFAULT_DRUGS_LIST_CANDIDATES[0]
+
+
+def drugs_catalog_path() -> Path:
+    """NCI drug catalog with official page URLs for the Drug list page."""
+    override = os.getenv("V2_DRUGS_CATALOG", "").strip()
+    if override:
+        return Path(override)
+    for candidate in DEFAULT_DRUGS_CATALOG_CANDIDATES:
+        if candidate.is_file():
+            return candidate
+    # Prefer a sibling of the token list when the catalog has not been written yet.
+    return drugs_list_path().with_name("nci_oncology_drugs_catalog.json")
 
 
 def cors_origins() -> list[str]:

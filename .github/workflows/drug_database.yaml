@@ -54,8 +54,13 @@ jobs:
 
           mkdir -p apps/api/data
           cp src/data/nci_oncology_drugs.json apps/api/data/nci_oncology_drugs.json
+          cp src/data/nci_oncology_drugs_catalog.json apps/api/data/nci_oncology_drugs_catalog.json
 
-          git add src/data/nci_oncology_drugs.json apps/api/data/nci_oncology_drugs.json
+          git add \
+            src/data/nci_oncology_drugs.json \
+            src/data/nci_oncology_drugs_catalog.json \
+            apps/api/data/nci_oncology_drugs.json \
+            apps/api/data/nci_oncology_drugs_catalog.json
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
