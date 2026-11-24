@@ -36,6 +36,17 @@ jobs:
           cd src
           uv run -m main --update-drug-database
 
+      - name: Sync drug list into MongoDB Atlas
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "MONGODB_URI secret not set; skipping Atlas sync."
+            exit 0
+          fi
+          uv run python -c "from apps.api.services import drugs; print(drugs.sync_from_file()['count'])"
+
       - name: Commit updated JSON
         run: |
           git config user.name "github-actions[bot]"

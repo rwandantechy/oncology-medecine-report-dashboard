@@ -19,4 +19,13 @@ class DrugsResponse(BaseModel):
     source_url: str
     count: int
     drugs: list[DrugItem]
-    path: Optional[str] = None
+    storage: str = "mongodb"
+    updated_at: Optional[str] = None
+
+
+class DrugsSyncResult(BaseModel):
+    source: str
+    source_url: str
+    count: int
+    storage: str = "mongodb"
+    updated_at: Optional[str] = None

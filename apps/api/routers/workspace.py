@@ -17,10 +17,10 @@ router = APIRouter(tags=["workspace"], dependencies=WORKSPACE)
 
 @router.get("/api/drugs", response_model=DrugsResponse)
 def oncology_drugs() -> dict:
-    """NCI oncology drug names used for notice matching."""
+    """NCI oncology drug names used for notice matching (Atlas-backed)."""
     try:
         return drugs.catalog()
-    except drugs.Missing as error:
+    except (drugs.Missing, drugs.StoreUnavailable) as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=content.ERRORS["drugs_unavailable"],

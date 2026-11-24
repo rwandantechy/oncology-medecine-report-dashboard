@@ -6,10 +6,35 @@ from fastapi import APIRouter, HTTPException, status
 
 from ..core import content
 from ..dependencies import ADMIN
+from ..schemas.drugs import DrugsSyncResult
 from ..schemas.tools import CollectionRunResult, CollectionToolsResponse
-from ..services import collection_jobs
+from ..services import collection_jobs, drugs
 
 router = APIRouter(tags=["admin-tools"], dependencies=ADMIN)
+
+
+@router.post("/api/admin/drugs/sync", response_model=DrugsSyncResult)
+def sync_drugs() -> dict:
+    """Reload the Atlas drug collection from the committed NCI JSON file."""
+    try:
+        payload = drugs.sync_from_file()
+    except drugs.Missing as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=content.ERRORS["drugs_unavailable"],
+        ) from error
+    except drugs.StoreUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=content.ERRORS["auth_store_unavailable"],
+        ) from error
+    return {
+        "source": payload["source"],
+        "source_url": payload["source_url"],
+        "count": payload["count"],
+        "storage": payload["storage"],
+        "updated_at": payload.get("updated_at"),
+    }
 
 
 @router.get("/api/admin/tools", response_model=CollectionToolsResponse)
