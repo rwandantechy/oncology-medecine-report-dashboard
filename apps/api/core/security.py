@@ -64,7 +64,11 @@ def issue(user: SessionUser) -> AccessToken:
 
 
 def read(token: str) -> SessionUser:
-    """Verify a token and return who it belongs to."""
+    """Verify a token and return who it belongs to.
+
+    Role comes from the token, but ``V2_ADMIN_EMAILS`` still elevates the
+    session so Settings can show admin tools without forcing a fresh login.
+    """
     try:
         claims = jwt.decode(
             token,
@@ -72,11 +76,15 @@ def read(token: str) -> SessionUser:
             algorithms=[settings.JWT_ALGORITHM],
             options={"require": ["exp", "sub"]},
         )
+        email = str(claims.get("email", "")).lower()
+        role = claims.get("role", settings.DEFAULT_USER_ROLE)
+        if role != settings.ADMIN_ROLE and email in settings.admin_emails():
+            role = settings.ADMIN_ROLE
         return SessionUser(
             id=claims.get("sub", ""),
             name=claims.get("name", ""),
             email=claims.get("email", ""),
-            role=claims.get("role", settings.DEFAULT_USER_ROLE),
+            role=role,
         )
     except (jwt.PyJWTError, ValidationError) as error:
         raise InvalidToken(str(error)) from error
