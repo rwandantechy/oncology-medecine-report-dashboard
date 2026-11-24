@@ -133,6 +133,7 @@ def health_cache_seconds() -> float:
 
 DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "v2.db"
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,https://oncosmart.vercel.app"
+DEFAULT_PUBLIC_APP_URL = "https://oncosmart-app.vercel.app/"
 
 # Auth can rotate a session with PATCH; everything else is GET or POST.
 CORS_METHODS = tuple(os.getenv("V2_CORS_METHODS", "GET,POST,PATCH,DELETE").split(","))
@@ -153,6 +154,11 @@ def cors_origins() -> list[str]:
     """Browser origins allowed to call the API."""
     raw = os.getenv("V2_CORS_ORIGINS", DEFAULT_CORS_ORIGINS)
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def public_app_url() -> str:
+    """Public web app URL shown when someone opens the API root in a browser."""
+    return os.getenv("V2_PUBLIC_APP_URL", DEFAULT_PUBLIC_APP_URL).strip() or DEFAULT_PUBLIC_APP_URL
 
 
 # --- Request shape ----------------------------------------------------------
