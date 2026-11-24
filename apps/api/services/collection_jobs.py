@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any
-
-import httpx
+from urllib import error, request
 
 from ..core import content, settings
 
@@ -70,6 +70,7 @@ def _headers() -> dict[str, str]:
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "EveryDoseMatters-AdminTools",
+        "Content-Type": "application/json",
     }
 
 
@@ -95,20 +96,26 @@ def run(tool_id: str) -> dict[str, Any]:
     workflow = _WORKFLOW_BY_TOOL[tool_id]()
     url = _dispatch_url(workflow)
     payload = {"ref": settings.GITHUB_ACTIONS_REF}
+    body = json.dumps(payload).encode()
+    req = request.Request(url, data=body, headers=_headers(), method="POST")
     try:
-        response = httpx.post(url, json=payload, headers=_headers(), timeout=20.0)
-    except httpx.HTTPError as error:
-        logger.warning("GitHub dispatch transport error for %s: %s", tool_id, error)
-        raise DispatchFailed(str(error)) from error
-
-    if response.status_code not in (201, 204):
+        with request.urlopen(req, timeout=20) as response:
+            status_code = getattr(response, "status", 200)
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:300]
         logger.warning(
             "GitHub dispatch rejected for %s: %s %s",
             tool_id,
-            response.status_code,
-            response.text[:300],
+            exc.code,
+            detail,
         )
-        raise DispatchFailed(f"status {response.status_code}")
+        raise DispatchFailed(f"status {exc.code}") from exc
+    except error.URLError as exc:
+        logger.warning("GitHub dispatch transport error for %s: %s", tool_id, exc)
+        raise DispatchFailed(str(exc.reason)) from exc
+
+    if status_code not in (200, 201, 204):
+        raise DispatchFailed(f"status {status_code}")
 
     _LAST_RUN_AT[tool_id] = time.monotonic()
     label = content.TOOLS[tool_id]["label"]
