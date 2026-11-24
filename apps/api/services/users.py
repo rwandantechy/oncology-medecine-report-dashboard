@@ -60,12 +60,21 @@ def _store() -> Collection:
         raise _unavailable(error) from error
 
 
+def _effective_role(document: dict[str, Any]) -> str:
+    """Stored role, or admin when the email is on the allowlist."""
+    stored = document.get(ROLE_FIELD) or settings.DEFAULT_USER_ROLE
+    email = str(document.get(settings.EMAIL_FIELD, "")).lower()
+    if stored == settings.ADMIN_ROLE or email in settings.admin_emails():
+        return settings.ADMIN_ROLE
+    return stored
+
+
 def _session_user(document: dict[str, Any]) -> SessionUser:
     return SessionUser(
         id=str(document["_id"]),
         name=document.get(NAME_FIELD) or document[settings.EMAIL_FIELD],
         email=document[settings.EMAIL_FIELD],
-        role=document.get(ROLE_FIELD) or settings.DEFAULT_USER_ROLE,
+        role=_effective_role(document),
     )
 
 

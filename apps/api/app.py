@@ -12,7 +12,7 @@ from pymongo.errors import PyMongoError
 from .core import content, security, settings
 from .db import mongo
 from .db.snapshot import Missing
-from .routers import alerts, auth, health, workspace
+from .routers import admin_tools, alerts, auth, health, workspace
 
 app = FastAPI(title=content.API_TITLE, version=content.API_VERSION)
 app.add_middleware(
@@ -26,6 +26,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(alerts.router)
 app.include_router(workspace.router)
+app.include_router(admin_tools.router)
 
 logger = logging.getLogger(__name__)
 

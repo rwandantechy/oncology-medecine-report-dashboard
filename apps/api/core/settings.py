@@ -199,10 +199,23 @@ ALERTS_COLLECTION = os.getenv("MONGODB_ALERTS_COLLECTION", "alerts")
 SNAPSHOTS_COLLECTION = os.getenv("MONGODB_SNAPSHOTS_COLLECTION", "snapshots")
 REVIEW_COLLECTION = os.getenv("MONGODB_REVIEW_COLLECTION", "review_queue")
 DEFAULT_USER_ROLE = os.getenv("V2_DEFAULT_USER_ROLE", "researcher")
+ADMIN_ROLE = os.getenv("V2_ADMIN_ROLE", "admin")
 NAME_MIN_LENGTH = _whole("V2_NAME_MIN_LENGTH", 2)
 NAME_MAX_LENGTH = _whole("V2_NAME_MAX_LENGTH", 120)
 PASSWORD_MIN_LENGTH = _whole("V2_PASSWORD_MIN_LENGTH", 8)
 PASSWORD_MAX_LENGTH = _whole("V2_PASSWORD_MAX_LENGTH", 128)
+
+# --- GitHub Actions (admin-triggered collection tools) ----------------------
+
+GITHUB_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com").rstrip("/")
+GITHUB_ACTIONS_REF = os.getenv("GITHUB_ACTIONS_REF", "main")
+GITHUB_WORKFLOW_WEEKLY_SCRAPE = os.getenv(
+    "GITHUB_WORKFLOW_WEEKLY_SCRAPE", "weekly_scrape.yaml"
+)
+GITHUB_WORKFLOW_DRUG_DATABASE = os.getenv(
+    "GITHUB_WORKFLOW_DRUG_DATABASE", "drug_database.yaml"
+)
+COLLECTION_JOB_COOLDOWN_SECONDS = _number("V2_COLLECTION_JOB_COOLDOWN_SECONDS", 60.0)
 
 
 def signup_open() -> bool:
@@ -212,3 +225,18 @@ def signup_open() -> bool:
 
 def auth_database() -> str:
     return os.getenv("MONGODB_DATABASE", "everydosematters")
+
+
+def admin_emails() -> set[str]:
+    """Emails treated as admin even if the stored role is still researcher."""
+    raw = os.getenv("V2_ADMIN_EMAILS", "")
+    return {part.strip().lower() for part in raw.split(",") if part.strip()}
+
+
+def github_actions_token() -> str:
+    return os.getenv("GITHUB_ACTIONS_TOKEN", "").strip()
+
+
+def github_actions_repo() -> str:
+    """owner/name of the repo that hosts the collection workflows."""
+    return os.getenv("GITHUB_ACTIONS_REPO", "").strip()

@@ -38,6 +38,33 @@ ERRORS = {
     "wrong_password": "Your current password is incorrect.",
     "password_unchanged": "Choose a new password that is different from the current one.",
     "name_too_short": "Name must contain at least {minimum} characters.",
+    "admin_required": "Only an administrator can run collection tools.",
+    "tools_not_configured": (
+        "Collection tools are not configured in this environment."
+    ),
+    "tool_unknown": "That collection tool was not found.",
+    "tool_busy": "That collection job was started recently. Please wait a moment.",
+    "tool_dispatch_failed": (
+        "The collection job could not be started. Please try again shortly."
+    ),
+}
+
+TOOLS = {
+    "weekly_scrape": {
+        "id": "weekly_scrape",
+        "label": "Collect notices",
+        "description": (
+            "Runs the weekly scraper workflow (about the last 7 days) and "
+            "commits updated records when finished."
+        ),
+    },
+    "drug_database": {
+        "id": "drug_database",
+        "label": "Update drug list",
+        "description": (
+            "Runs the NCI oncology drug-list workflow and commits the refreshed file."
+        ),
+    },
 }
 
 # How a field path and message are joined in an invalid-request detail.

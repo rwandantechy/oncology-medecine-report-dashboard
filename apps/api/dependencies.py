@@ -45,4 +45,21 @@ def current_user(
         ) from error
 
 
+def is_admin(user: SessionUser) -> bool:
+    if user.role == settings.ADMIN_ROLE:
+        return True
+    return str(user.email).lower() in settings.admin_emails()
+
+
+def require_admin(user: Annotated[SessionUser, Depends(current_user)]) -> SessionUser:
+    """Workspace session that must belong to an administrator."""
+    if not is_admin(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=content.ERRORS["admin_required"],
+        )
+    return user
+
+
 WORKSPACE = [Depends(current_user)]
+ADMIN = [Depends(require_admin)]
