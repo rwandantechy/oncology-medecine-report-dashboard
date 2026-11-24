@@ -7,11 +7,24 @@ from fastapi.responses import StreamingResponse
 
 from ..core import content, settings
 from ..dependencies import WORKSPACE
+from ..schemas.drugs import DrugsResponse
 from ..schemas.research import ResearchQuestion
 from ..schemas.review import ReviewActionResult, ReviewItem, ReviewPage, ReviewUpdate
-from ..services import alerts, insights, research, review
+from ..services import alerts, drugs, insights, research, review
 
 router = APIRouter(tags=["workspace"], dependencies=WORKSPACE)
+
+
+@router.get("/api/drugs", response_model=DrugsResponse)
+def oncology_drugs() -> dict:
+    """NCI oncology drug names used for notice matching."""
+    try:
+        return drugs.catalog()
+    except drugs.Missing as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=content.ERRORS["drugs_unavailable"],
+        ) from error
 
 
 @router.get("/api/dataset")

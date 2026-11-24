@@ -131,9 +131,23 @@ def health_cache_seconds() -> float:
 
 # --- Storage and transport --------------------------------------------------
 
-DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "v2.db"
+_API_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = _API_ROOT.parent.parent
+DEFAULT_DB = _API_ROOT / "data" / "v2.db"
+DEFAULT_DRUGS_LIST_CANDIDATES = (
+    _REPO_ROOT / "src" / "data" / "nci_oncology_drugs.json",
+    _API_ROOT / "data" / "nci_oncology_drugs.json",
+)
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,https://oncosmart.vercel.app"
 DEFAULT_PUBLIC_APP_URL = "https://oncosmart.vercel.app/"
+NCI_DRUGS_SOURCE_URL = os.getenv(
+    "V2_NCI_DRUGS_SOURCE_URL",
+    "https://www.cancer.gov/about-cancer/treatment/drugs/cancer-drugs",
+)
+NCI_DRUG_INFO_URL = os.getenv(
+    "V2_NCI_DRUG_INFO_URL",
+    "https://www.cancer.gov/about-cancer/treatment/drugs/{slug}",
+)
 
 # Auth can rotate a session with PATCH; everything else is GET or POST.
 CORS_METHODS = tuple(os.getenv("V2_CORS_METHODS", "GET,POST,PATCH,DELETE").split(","))
@@ -148,6 +162,17 @@ CORS_EXPOSE_HEADERS = tuple(
 def database_path() -> Path:
     """Location of the imported V2 snapshot."""
     return Path(os.getenv("V2_DATABASE", DEFAULT_DB))
+
+
+def drugs_list_path() -> Path:
+    """NCI oncology drug-name list used for matching and the Drug list page."""
+    override = os.getenv("V2_DRUGS_LIST", "").strip()
+    if override:
+        return Path(override)
+    for candidate in DEFAULT_DRUGS_LIST_CANDIDATES:
+        if candidate.is_file():
+            return candidate
+    return DEFAULT_DRUGS_LIST_CANDIDATES[0]
 
 
 def cors_origins() -> list[str]:

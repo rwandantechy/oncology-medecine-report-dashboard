@@ -47,6 +47,7 @@ ERRORS = {
     "tool_dispatch_failed": (
         "The collection job could not be started. Please try again shortly."
     ),
+    "drugs_unavailable": "The oncology drug list is not available right now.",
 }
 
 TOOLS = {
