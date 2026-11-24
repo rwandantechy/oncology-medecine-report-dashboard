@@ -7,12 +7,22 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class CollectionToolRun(BaseModel):
+    status: str
+    conclusion: Optional[str] = None
+    label: str
+    run_number: Optional[int] = None
+    html_url: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
 class CollectionTool(BaseModel):
     id: str
     label: str
     description: str
     configured: bool
     busy: bool = False
+    latest_run: Optional[CollectionToolRun] = None
 
 
 class CollectionToolsResponse(BaseModel):
@@ -26,3 +36,4 @@ class CollectionRunResult(BaseModel):
     status: str = Field(description="queued when GitHub accepted the dispatch")
     message: str
     actions_url: Optional[str] = None
+    latest_run: Optional[CollectionToolRun] = None
