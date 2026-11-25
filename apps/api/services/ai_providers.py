@@ -5,10 +5,16 @@ from __future__ import annotations
 import json
 import logging
 import time
+from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any
 from urllib import error, request
 
+from pymongo.collection import Collection
+from pymongo.errors import PyMongoError
+
 from ..core import settings
+from ..db import mongo
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +23,13 @@ _JSON_HEADERS = {"Content-Type": "application/json"}
 # Reachability is cached so a page that polls /api/health does not probe per call.
 _availability_cache: dict[str, tuple[float, bool]] = {}
 
+AI_PREF_ID = "ai_providers"
+PROVIDER_LABELS = {
+    settings.GEMINI: "Gemini",
+    settings.OPENROUTER: "OpenRouter",
+    settings.OLLAMA: "Ollama",
+}
+
 ProviderConfig = (
     settings.OllamaSettings | settings.GeminiSettings | settings.OpenRouterSettings
 )
@@ -24,6 +37,10 @@ ProviderConfig = (
 
 class ProviderError(RuntimeError):
     """A provider is unconfigured, unreachable, or returned unusable output."""
+
+
+class PreferenceError(RuntimeError):
+    """Admin AI preference could not be read or written."""
 
 
 def clear_availability_cache() -> None:
@@ -245,21 +262,142 @@ def build_provider(name: str) -> Provider:
     return OllamaProvider(settings.ollama_settings())
 
 
+@lru_cache(maxsize=1)
+def _prefs() -> Collection:
+    return mongo.collection(settings.RUNTIME_SETTINGS_COLLECTION)
+
+
+def _prefs_store() -> Collection | None:
+    try:
+        return _prefs()
+    except (mongo.NotConfigured, PyMongoError) as exc:
+        logger.warning("AI preference store unavailable (%s)", type(exc).__name__)
+        return None
+
+
+def _normalize_chain(primary: str, fallback: str | None) -> list[str]:
+    names: list[str] = []
+    for name in (primary, fallback):
+        if not name:
+            continue
+        cleaned = name.strip().lower()
+        if cleaned not in settings.PROVIDER_NAMES:
+            raise PreferenceError(f"unknown:{cleaned}")
+        if cleaned not in names:
+            names.append(cleaned)
+    return names
+
+
+def _read_admin_chain() -> list[str] | None:
+    store = _prefs_store()
+    if store is None:
+        return None
+    try:
+        document = store.find_one({"_id": AI_PREF_ID}) or {}
+    except PyMongoError as exc:
+        logger.warning("AI preference read failed (%s)", type(exc).__name__)
+        return None
+    primary = str(document.get("primary") or "").strip().lower()
+    if not primary:
+        return None
+    fallback = document.get("fallback")
+    fallback_s = str(fallback).strip().lower() if fallback else None
+    try:
+        return _normalize_chain(primary, fallback_s)
+    except PreferenceError:
+        return None
+
+
+def runtime_chain_names() -> list[str]:
+    """Admin override when present, otherwise env chain."""
+    admin = _read_admin_chain()
+    if admin:
+        return admin
+    return settings.provider_chain_names()
+
+
 def active_provider() -> Provider:
-    """Build the primary provider named by ``AI_PROVIDER`` / the failover chain."""
-    return build_provider(settings.provider_name())
+    """Build the primary provider from the runtime failover chain."""
+    names = runtime_chain_names()
+    return build_provider(names[0] if names else settings.OLLAMA)
 
 
 def provider_chain() -> list[Provider]:
     """Configured providers in failover order (configured ones only)."""
     providers: list[Provider] = []
-    for name in settings.provider_chain_names():
+    for name in runtime_chain_names():
         provider = build_provider(name)
         if not provider.configured:
             logger.warning("Skipping AI provider %s — not configured", name)
             continue
         providers.append(provider)
     return providers
+
+
+def admin_ai_settings() -> dict[str, Any]:
+    """Status payload for the admin AI switcher. Never includes credentials."""
+    admin_chain = _read_admin_chain()
+    chain_names = admin_chain or settings.provider_chain_names()
+    primary = chain_names[0] if chain_names else settings.OLLAMA
+    fallback = chain_names[1] if len(chain_names) > 1 else None
+    options: list[dict[str, Any]] = []
+    for name in settings.PROVIDER_NAMES:
+        provider = build_provider(name)
+        options.append(
+            {
+                "name": name,
+                "label": PROVIDER_LABELS.get(name, name),
+                "model": provider.model,
+                "configured": provider.configured,
+                "available": bool(
+                    settings.ai_enabled() and provider.configured and is_available(provider)
+                ),
+            }
+        )
+    return {
+        "enabled": settings.ai_enabled(),
+        "primary": primary,
+        "fallback": fallback,
+        "chain": chain_names,
+        "source": "admin" if admin_chain else "env",
+        "options": options,
+    }
+
+
+def set_admin_ai_settings(primary: str, fallback: str | None = None) -> dict[str, Any]:
+    """Persist primary/fallback providers for admin-controlled failover."""
+    chain = _normalize_chain(primary, fallback)
+    primary_name = chain[0]
+    fallback_name = chain[1] if len(chain) > 1 else None
+
+    primary_provider = build_provider(primary_name)
+    if not primary_provider.configured:
+        raise PreferenceError(f"not_configured:{primary_name}")
+    if fallback_name:
+        fallback_provider = build_provider(fallback_name)
+        if not fallback_provider.configured:
+            raise PreferenceError(f"not_configured:{fallback_name}")
+
+    store = _prefs_store()
+    if store is None:
+        raise PreferenceError("store_unavailable")
+
+    try:
+        store.replace_one(
+            {"_id": AI_PREF_ID},
+            {
+                "_id": AI_PREF_ID,
+                "primary": primary_name,
+                "fallback": fallback_name,
+                "updated_at": datetime.now(timezone.utc),
+            },
+            upsert=True,
+        )
+    except PyMongoError as exc:
+        raise PreferenceError("store_unavailable") from exc
+
+    clear_availability_cache()
+    return admin_ai_settings()
 
 
 def is_available(provider: Provider) -> bool:
@@ -330,11 +468,13 @@ def provider_status() -> dict[str, Any]:
     available = False
     if enabled and chain:
         available = any(is_available(provider) for provider in chain)
+    admin = _read_admin_chain()
     return {
         "ai_enabled": enabled,
         "ai_available": available,
         "ai_provider": primary.name,
         "ai_model": primary.model,
+        "ai_source": "admin" if admin else "env",
         "ai_providers": [
             {
                 "name": provider.name,

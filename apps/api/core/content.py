@@ -48,6 +48,9 @@ ERRORS = {
         "The collection job could not be started. Please try again shortly."
     ),
     "drugs_unavailable": "The oncology drug list is not available right now.",
+    "ai_provider_unknown": "That AI provider is not supported.",
+    "ai_provider_not_configured": "That AI provider is not configured in this environment.",
+    "ai_settings_unavailable": "AI provider settings could not be saved right now.",
 }
 
 TOOLS = {

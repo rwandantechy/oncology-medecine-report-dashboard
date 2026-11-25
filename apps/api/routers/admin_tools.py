@@ -6,11 +6,40 @@ from fastapi import APIRouter, HTTPException, status
 
 from ..core import content
 from ..dependencies import ADMIN
+from ..schemas.ai import AiSettingsResponse, AiSettingsUpdate
 from ..schemas.drugs import DrugsSyncResult
 from ..schemas.tools import CollectionRunResult, CollectionToolsResponse
 from ..services import collection_jobs, drugs
+from ..services import ai_providers
 
 router = APIRouter(tags=["admin-tools"], dependencies=ADMIN)
+
+
+@router.get("/api/admin/ai", response_model=AiSettingsResponse)
+def get_ai_settings() -> dict:
+    return ai_providers.admin_ai_settings()
+
+
+@router.put("/api/admin/ai", response_model=AiSettingsResponse)
+def update_ai_settings(payload: AiSettingsUpdate) -> dict:
+    try:
+        return ai_providers.set_admin_ai_settings(payload.primary, payload.fallback)
+    except ai_providers.PreferenceError as error:
+        detail = str(error)
+        if detail.startswith("unknown:"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=content.ERRORS["ai_provider_unknown"],
+            ) from error
+        if detail.startswith("not_configured:"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=content.ERRORS["ai_provider_not_configured"],
+            ) from error
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=content.ERRORS["ai_settings_unavailable"],
+        ) from error
 
 
 @router.post("/api/admin/drugs/sync", response_model=DrugsSyncResult)
