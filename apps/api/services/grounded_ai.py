@@ -10,7 +10,11 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError
 
 from ..core import content, prompts, rules, settings
-from .ai_providers import ProviderError, active_provider, record_outcome
+from .ai_providers import (
+    ProviderError,
+    active_provider,
+    generate_json_with_failover,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -129,16 +133,13 @@ def answer_research_question(
         question=question,
         evidence=json.dumps(evidence, ensure_ascii=False),
     )
-    provider = active_provider()
     try:
-        payload = provider.generate_json(
+        provider, payload = generate_json_with_failover(
             prompt,
-            timeout=provider.ask_timeout,
             max_output_tokens=settings.ASK_OUTPUT_TOKENS,
         )
     except ProviderError as exc:
-        record_outcome(provider, False)
-        logger.warning("Research answer fell back to the snapshot (%s): %s", provider.name, exc)
+        logger.warning("Research answer fell back to the snapshot: %s", exc)
         return _snapshot_answer(question_lower, records, summary)
 
     try:
@@ -147,7 +148,6 @@ def answer_research_question(
         logger.warning("Research answer had an unusable shape (%s): %s", provider.name, exc)
         return _snapshot_answer(question_lower, records, summary)
 
-    record_outcome(provider, True)
     return {
         "enabled": True,
         "provider": provider.name,
@@ -181,20 +181,18 @@ def explain_alert_record(record: dict[str, Any]) -> dict[str, Any]:
 
     evidence = {key: record.get(key) for key in rules.EXPLANATION_EVIDENCE_FIELDS}
     prompt = prompts.ALERT_EXPLANATION.format(evidence=json.dumps(evidence, ensure_ascii=False))
-    provider = active_provider()
     fallback = deterministic_explanation(record) | {
         "provider": PROVIDERS["deterministic_fallback"],
         "message": content.EXPLANATION["model_unavailable"],
     }
     try:
-        payload = provider.generate_json(
+        provider, payload = generate_json_with_failover(
             prompt,
-            timeout=provider.explain_timeout,
+            timeout=active_provider().explain_timeout,
             max_output_tokens=settings.EXPLAIN_OUTPUT_TOKENS,
         )
     except ProviderError as exc:
-        record_outcome(provider, False)
-        logger.warning("Explanation fell back to deterministic text (%s): %s", provider.name, exc)
+        logger.warning("Explanation fell back to deterministic text: %s", exc)
         return fallback
 
     try:
@@ -203,7 +201,6 @@ def explain_alert_record(record: dict[str, Any]) -> dict[str, Any]:
         logger.warning("Explanation had an unusable shape (%s): %s", provider.name, exc)
         return fallback
 
-    record_outcome(provider, True)
     return {
         "enabled": True,
         "provider": provider.name,

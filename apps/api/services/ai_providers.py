@@ -1,4 +1,4 @@
-"""Interchangeable JSON-producing model backends: local Ollama or Google Gemini."""
+"""Interchangeable JSON-producing model backends with optional failover."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 import logging
 import time
 from typing import Any
-from urllib import request
+from urllib import error, request
 
 from ..core import settings
 
@@ -16,6 +16,10 @@ _JSON_HEADERS = {"Content-Type": "application/json"}
 
 # Reachability is cached so a page that polls /api/health does not probe per call.
 _availability_cache: dict[str, tuple[float, bool]] = {}
+
+ProviderConfig = (
+    settings.OllamaSettings | settings.GeminiSettings | settings.OpenRouterSettings
+)
 
 
 class ProviderError(RuntimeError):
@@ -30,8 +34,12 @@ def clear_availability_cache() -> None:
 def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str], timeout: float) -> dict:
     body = json.dumps(payload).encode()
     req = request.Request(url, data=body, headers={**_JSON_HEADERS, **headers}, method="POST")
-    with request.urlopen(req, timeout=timeout) as response:
-        return json.loads(response.read())
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            return json.loads(response.read())
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:240]
+        raise ProviderError(f"HTTP {exc.code}: {detail}") from exc
 
 
 def _reachable(url: str, headers: dict[str, str], timeout: float) -> bool:
@@ -57,7 +65,7 @@ def _json_object(text: str) -> dict:
 class Provider:
     """Shared surface for the supported model backends."""
 
-    def __init__(self, config: settings.OllamaSettings | settings.GeminiSettings) -> None:
+    def __init__(self, config: ProviderConfig) -> None:
         self.config = config
 
     @property
@@ -106,7 +114,7 @@ class OllamaProvider(Provider):
         }
         try:
             body = _post_json(f"{self.config.url}/api/generate", payload, {}, timeout)
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, ProviderError) as exc:
             raise ProviderError(f"Ollama request failed: {exc}") from exc
 
         text = body.get("response") or body.get("thinking") or ""
@@ -150,7 +158,7 @@ class GeminiProvider(Provider):
         payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": generation}
         try:
             body = _post_json(url, payload, self._headers(), timeout)
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, ProviderError) as exc:
             raise ProviderError(f"Gemini request failed: {exc}") from exc
 
         try:
@@ -165,11 +173,93 @@ class GeminiProvider(Provider):
             raise ProviderError("Gemini returned output that is not JSON") from exc
 
 
-def active_provider() -> Provider:
-    """Build the provider named by ``AI_PROVIDER``."""
-    if settings.provider_name() == settings.GEMINI:
+class OpenRouterProvider(Provider):
+    """OpenRouter chat completions (OpenAI-compatible), constrained to JSON."""
+
+    config: settings.OpenRouterSettings
+
+    def _headers(self) -> dict[str, str]:
+        headers = {
+            "Authorization": f"Bearer {self.config.api_key}",
+            "Accept": "application/json",
+        }
+        if self.config.site_url:
+            headers["HTTP-Referer"] = self.config.site_url
+        if self.config.app_name:
+            headers["X-Title"] = self.config.app_name
+        return headers
+
+    def available(self) -> bool:
+        if not self.configured:
+            return False
+        # /models is public; with a key it confirms auth is accepted.
+        return _reachable(
+            f"{self.config.url}/models",
+            self._headers(),
+            self.config.health_timeout,
+        )
+
+    def generate_json(self, prompt: str, *, timeout: float, max_output_tokens: int) -> dict:
+        if not self.configured:
+            raise ProviderError("OPENROUTER_API_KEY is not set")
+
+        payload = {
+            "model": self.config.model,
+            "temperature": 0,
+            "max_tokens": max_output_tokens,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Reply with a single JSON object only. No markdown.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+        }
+        try:
+            body = _post_json(
+                f"{self.config.url}/chat/completions",
+                payload,
+                self._headers(),
+                timeout,
+            )
+        except (OSError, ValueError, ProviderError) as exc:
+            raise ProviderError(f"OpenRouter request failed: {exc}") from exc
+
+        try:
+            text = body["choices"][0]["message"]["content"] or ""
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ProviderError("OpenRouter returned no message content") from exc
+
+        try:
+            return _json_object(text)
+        except json.JSONDecodeError as exc:
+            raise ProviderError("OpenRouter returned output that is not JSON") from exc
+
+
+def build_provider(name: str) -> Provider:
+    if name == settings.GEMINI:
         return GeminiProvider(settings.gemini_settings())
+    if name == settings.OPENROUTER:
+        return OpenRouterProvider(settings.openrouter_settings())
     return OllamaProvider(settings.ollama_settings())
+
+
+def active_provider() -> Provider:
+    """Build the primary provider named by ``AI_PROVIDER`` / the failover chain."""
+    return build_provider(settings.provider_name())
+
+
+def provider_chain() -> list[Provider]:
+    """Configured providers in failover order (configured ones only)."""
+    providers: list[Provider] = []
+    for name in settings.provider_chain_names():
+        provider = build_provider(name)
+        if not provider.configured:
+            logger.warning("Skipping AI provider %s — not configured", name)
+            continue
+        providers.append(provider)
+    return providers
 
 
 def is_available(provider: Provider) -> bool:
@@ -195,13 +285,63 @@ def record_outcome(provider: Provider, succeeded: bool) -> None:
     _availability_cache[provider.name] = (time.monotonic(), succeeded)
 
 
+def generate_json_with_failover(
+    prompt: str,
+    *,
+    timeout: float | None = None,
+    max_output_tokens: int,
+) -> tuple[Provider, dict]:
+    """Try each configured provider until one returns usable JSON.
+
+    Returns the winning provider and payload. Raises ``ProviderError`` only when
+    every candidate fails or none are configured.
+    """
+    chain = provider_chain()
+    if not chain:
+        raise ProviderError("No AI providers are configured")
+
+    errors: list[str] = []
+    for provider in chain:
+        ask_timeout = timeout if timeout is not None else provider.ask_timeout
+        try:
+            payload = provider.generate_json(
+                prompt,
+                timeout=ask_timeout,
+                max_output_tokens=max_output_tokens,
+            )
+        except ProviderError as exc:
+            record_outcome(provider, False)
+            logger.warning("AI provider %s failed; trying next: %s", provider.name, exc)
+            errors.append(f"{provider.name}: {exc}")
+            continue
+        record_outcome(provider, True)
+        if provider is not chain[0]:
+            logger.info("AI failover succeeded with %s", provider.name)
+        return provider, payload
+
+    raise ProviderError("; ".join(errors) or "All AI providers failed")
+
+
 def provider_status() -> dict[str, Any]:
     """The AI fields reported by ``/api/health``. Never includes credentials."""
-    provider = active_provider()
     enabled = settings.ai_enabled()
+    chain = provider_chain()
+    primary = chain[0] if chain else active_provider()
+    available = False
+    if enabled and chain:
+        available = any(is_available(provider) for provider in chain)
     return {
         "ai_enabled": enabled,
-        "ai_available": bool(enabled and provider.configured and is_available(provider)),
-        "ai_provider": provider.name,
-        "ai_model": provider.model,
+        "ai_available": available,
+        "ai_provider": primary.name,
+        "ai_model": primary.model,
+        "ai_providers": [
+            {
+                "name": provider.name,
+                "model": provider.model,
+                "configured": provider.configured,
+                "available": bool(enabled and is_available(provider)),
+            }
+            for provider in chain
+        ],
     }

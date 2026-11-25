@@ -11,13 +11,16 @@ logger = logging.getLogger(__name__)
 
 OLLAMA = "ollama"
 GEMINI = "gemini"
-PROVIDER_NAMES = (OLLAMA, GEMINI)
+OPENROUTER = "openrouter"
+PROVIDER_NAMES = (OLLAMA, GEMINI, OPENROUTER)
 
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen3:0.6b"
 DEFAULT_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
 # gemini-2.5-flash is closed to new API keys and returns 404 on generateContent.
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
+DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1"
+DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash"
 
 _TRUTHY = {"1", "true", "yes", "on"}
 
@@ -82,24 +85,64 @@ class GeminiSettings:
         return bool(self.api_key)
 
 
+@dataclass(frozen=True)
+class OpenRouterSettings:
+    """Connection details for the OpenRouter OpenAI-compatible chat API."""
+
+    url: str
+    model: str
+    api_key: str
+    ask_timeout: float
+    explain_timeout: float
+    health_timeout: float
+    site_url: str
+    app_name: str
+    name: str = OPENROUTER
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.api_key)
+
+
 def ai_enabled() -> bool:
     """Whether model-generated output is permitted at all in this environment."""
     return _flag("V2_AI_ENABLED", "true")
 
 
 def provider_name() -> str:
-    """The configured provider, falling back to local Ollama for unknown values."""
-    requested = os.getenv("AI_PROVIDER", OLLAMA).strip().lower()
-    if requested in PROVIDER_NAMES:
-        return requested
-    if requested:
-        logger.warning(
-            "AI_PROVIDER=%r is not one of %s; using %s",
-            requested,
-            ", ".join(PROVIDER_NAMES),
-            OLLAMA,
-        )
-    return OLLAMA
+    """Primary provider from ``AI_PROVIDER`` (first entry of the failover chain)."""
+    chain = provider_chain_names()
+    return chain[0] if chain else OLLAMA
+
+
+def provider_chain_names() -> list[str]:
+    """Ordered provider names for failover.
+
+    Prefer ``AI_PROVIDERS=gemini,openrouter``. Otherwise use ``AI_PROVIDER`` plus
+    optional ``AI_FALLBACK_PROVIDER``.
+    """
+    raw_list = os.getenv("AI_PROVIDERS", "").strip()
+    if raw_list:
+        names = [part.strip().lower() for part in raw_list.split(",") if part.strip()]
+    else:
+        primary = os.getenv("AI_PROVIDER", OLLAMA).strip().lower() or OLLAMA
+        fallback = os.getenv("AI_FALLBACK_PROVIDER", "").strip().lower()
+        names = [primary]
+        if fallback and fallback != primary:
+            names.append(fallback)
+
+    ordered: list[str] = []
+    for name in names:
+        if name not in PROVIDER_NAMES:
+            logger.warning(
+                "Ignoring unknown AI provider %r; expected one of %s",
+                name,
+                ", ".join(PROVIDER_NAMES),
+            )
+            continue
+        if name not in ordered:
+            ordered.append(name)
+    return ordered or [OLLAMA]
 
 
 def ollama_settings() -> OllamaSettings:
@@ -121,6 +164,24 @@ def gemini_settings() -> GeminiSettings:
         ask_timeout=_number("AI_ASK_TIMEOUT", 25.0),
         explain_timeout=_number("AI_EXPLAIN_TIMEOUT", 30.0),
         health_timeout=_number("AI_HEALTH_TIMEOUT", 1.5),
+    )
+
+
+def openrouter_settings() -> OpenRouterSettings:
+    return OpenRouterSettings(
+        url=os.getenv("OPENROUTER_API_URL", DEFAULT_OPENROUTER_URL).rstrip("/"),
+        model=os.getenv("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL),
+        api_key=os.getenv("OPENROUTER_API_KEY", "").strip(),
+        ask_timeout=_number("AI_ASK_TIMEOUT", 25.0),
+        explain_timeout=_number("AI_EXPLAIN_TIMEOUT", 30.0),
+        health_timeout=_number("AI_HEALTH_TIMEOUT", 1.5),
+        site_url=os.getenv(
+            "OPENROUTER_SITE_URL",
+            os.getenv("V2_PUBLIC_APP_URL", DEFAULT_PUBLIC_APP_URL),
+        )
+        .strip()
+        .rstrip("/"),
+        app_name=os.getenv("OPENROUTER_APP_NAME", "EveryDoseMatters"),
     )
 
 
